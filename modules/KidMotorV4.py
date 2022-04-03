@@ -20,6 +20,12 @@ def write(address, data):
   except:
     print("Write to KidMotor Error")
 
+def writeByte(address, data):
+  try:
+    i2c1.writeto_mem(ADDR, address, data)
+  except:
+    print("Write to KidMotor Error")
+
 def read(address):
   try:
     return i2c1.readfrom_mem(ADDR, address, 1)[0]
@@ -86,3 +92,52 @@ def getADC(ch):
     return (buff[0] << 8) | buff[1]
   return 0
 
+def getADC(ch):
+  ch = int(ch - 1)
+  write(0x05, 0x80 | (ch & 0x07)) # Write ADC ch and set FLAG
+  errorCount = 0
+  while errorCount < 100:
+    if (read(0x05) & 0x80) == 0:
+      break
+    else:
+      sleep_ms(1)
+      errorCount = errorCount + 1
+  
+  if errorCount >= 100:
+    return 0
+
+  buff = read_bytes(0x06, 2)
+  if len(buff) == 2:
+    return (buff[0] << 8) | buff[1]
+  return 0
+
+def setPWM(ch, val):
+  ch = int(ch - 1)
+  writeByte(0x10 + (ch * 2), bytes([ (val >> 8) & 0xFF, val & 0xFF ]))
+
+def servoAngle(ch, angle):
+  ch = int(ch - 1)
+  write(0x20 + ch, angle)
+
+def servoUnlock(ch):
+  servoAngle(ch, 255)
+
+def distance(trig_ch, echo_ch):
+  trig_ch = int(trig_ch - 1)
+  echo_ch = int(echo_ch - 1)
+  write(0x30, 0x80 | ((trig_ch & 0x07) << 3) | (echo_ch & 0x07))
+  errorCount = 0
+  while errorCount < 100:
+    if (read(0x30) & 0x80) == 0:
+      break
+    else:
+      sleep_ms(1)
+      errorCount = errorCount + 1
+  
+  if errorCount >= 100:
+    return 0
+
+  buff = read_bytes(0x31, 2)
+  if len(buff) == 2:
+    return (buff[0] << 8) | buff[1]
+  return 0
